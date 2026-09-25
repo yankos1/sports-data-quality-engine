@@ -1,0 +1,13 @@
+beautifulsoup4>=4.12
+cryptography>=42.0
+openpyxl>=3.1
+pandas>=2.0
+playwright>=1.40
+pydantic>=2.0
+PyMySQL>=1.1
+python-dotenv>=1.0
+rapidfuzz>=3.0
+requests>=2.31
+SQLAlchemy>=2.0,<3.0
+streamlit>=1.30
+openai>=1.0
