@@ -202,18 +202,43 @@ class ExcelReportGenerator:
                     worksheet.cell(row_index, 8).number_format = '0.00"%"'
 
             if worksheet.title == "Market Trends & Drift":
-                variation_column = next(
-                    cell.column
-                    for cell in worksheet[1]
-                    if cell.value == "Variation (%)"
-                )
+                header_columns = {
+                    cell.value: cell.column for cell in worksheet[1] if cell.value
+                }
+                variation_column = header_columns["Variation (%)"]
                 column_letter = get_column_letter(variation_column)
                 green_fill = PatternFill(fill_type="solid", fgColor="D9EAD3")
                 orange_fill = PatternFill(fill_type="solid", fgColor="FCE4D6")
+                reversal_fill = PatternFill(fill_type="solid", fgColor="E4DFEC")
+                reversal_font = Font(bold=True, color="7030A0")
                 for row_index in range(2, worksheet.max_row + 1):
                     worksheet.cell(row_index, variation_column).number_format = (
                         "+0.00%;-0.00%"
                     )
+                    for probability_column in (
+                        "Ancienne proba (%)",
+                        "Nouvelle proba (%)",
+                    ):
+                        if probability_column in header_columns:
+                            worksheet.cell(
+                                row_index,
+                                header_columns[probability_column],
+                            ).number_format = "0.00%"
+                    if "Gain de proba (pts)" in header_columns:
+                        worksheet.cell(
+                            row_index,
+                            header_columns["Gain de proba (pts)"],
+                        ).number_format = "+0.00%;-0.00%"
+                    if "Cote Fair actuelle" in header_columns:
+                        worksheet.cell(
+                            row_index,
+                            header_columns["Cote Fair actuelle"],
+                        ).number_format = "0.00"
+                    if "Reversal Intensity (%)" in header_columns:
+                        worksheet.cell(
+                            row_index,
+                            header_columns["Reversal Intensity (%)"],
+                        ).number_format = "0.00\"%\""
                 if worksheet.max_row > 1:
                     drift_range = "{}2:{}{}".format(
                         column_letter,
@@ -227,6 +252,21 @@ class ExcelReportGenerator:
                             fill=green_fill,
                         ),
                     )
+                    if "Signal Marché" in header_columns:
+                        signal_letter = get_column_letter(header_columns["Signal Marché"])
+                        signal_range = "{}2:{}{}".format(
+                            signal_letter,
+                            signal_letter,
+                            worksheet.max_row,
+                        )
+                        worksheet.conditional_formatting.add(
+                            signal_range,
+                            FormulaRule(
+                                formula=['LEFT(${0}2,14)="SHARP REVERSAL"'.format(signal_letter)],
+                                fill=reversal_fill,
+                                font=reversal_font,
+                            ),
+                        )
                     worksheet.conditional_formatting.add(
                         drift_range,
                         FormulaRule(
