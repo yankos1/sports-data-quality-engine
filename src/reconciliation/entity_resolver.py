@@ -1,15 +1,14 @@
-import json
 import logging
 import re
 from typing import Optional
 
-from openai import OpenAI
 from rapidfuzz import fuzz, process
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from src.config import OPENAI_API_KEY
 from src.database.connection import SessionLocal
-from src.database.models import Team
+from src.database.models import Team, TeamAlias
 
 
 LOGGER = logging.getLogger(__name__)
@@ -42,15 +41,28 @@ COMMON_ALIASES = {
     "brighton & hove albion": "Brighton",
     "west ham united": "West Ham",
 }
-FUZZY_THRESHOLD = 78.0
-LLM_CONFIDENCE_THRESHOLD = 0.80
+AUTO_MATCH_THRESHOLD = 85.0
+LOW_CONFIDENCE_THRESHOLD = 65.0
 
 
 class EntityResolver:
-    def __init__(self, canonical_names: Optional[list[str]] = None) -> None:
-        if canonical_names is None:
-            with SessionLocal() as session:
+    def __init__(
+        self,
+        canonical_names: Optional[list[str]] = None,
+        session: Optional[Session] = None,
+    ) -> None:
+        self._session = session
+        if session is None:
+            with SessionLocal() as database_session:
+                if canonical_names is None:
+                    canonical_names = list(
+                        database_session.scalars(select(Team.canonical_name)).all()
+                    )
+                persisted_aliases = self._load_persisted_aliases(database_session)
+        else:
+            if canonical_names is None:
                 canonical_names = list(session.scalars(select(Team.canonical_name)).all())
+            persisted_aliases = self._load_persisted_aliases(session)
 
         self.canonical_names = sorted(
             {name.strip() for name in canonical_names if name and name.strip()}
@@ -61,9 +73,25 @@ class EntityResolver:
         self._normalized_aliases = {
             self._normalize(alias): canonical_name
             for alias, canonical_name in COMMON_ALIASES.items()
+            if canonical_name in self.canonical_names
         }
+        for normalized_alias, canonical_name in persisted_aliases:
+            if (
+                canonical_name in self.canonical_names
+                and normalized_alias not in self._normalized_aliases
+            ):
+                self._normalized_aliases[normalized_alias] = canonical_name
         self._cache: dict[str, dict] = {}
-        self._client: Optional[OpenAI] = None
+
+    @staticmethod
+    def _load_persisted_aliases(session: Session) -> list[tuple[str, str]]:
+        return list(
+            session.execute(
+                select(TeamAlias.normalized_alias, Team.canonical_name).join(
+                    Team, Team.id == TeamAlias.team_id
+                )
+            ).all()
+        )
 
     @staticmethod
     def _normalize(name: str) -> str:
@@ -75,15 +103,15 @@ class EntityResolver:
         if normalized_name in self._cache:
             return self._cache[normalized_name].copy()
 
-        alias_match = self._normalized_aliases.get(normalized_name)
-        if alias_match in self.canonical_names:
-            result = self._result(raw_name, alias_match, "alias", 1.0)
-            self._cache[normalized_name] = result
-            return result.copy()
-
         exact_match = self._normalized_names.get(normalized_name)
         if exact_match is not None:
             result = self._result(raw_name, exact_match, "exact", 1.0)
+            self._cache[normalized_name] = result
+            return result.copy()
+
+        alias_match = self._normalized_aliases.get(normalized_name)
+        if alias_match in self.canonical_names:
+            result = self._result(raw_name, alias_match, "alias", 1.0)
             self._cache[normalized_name] = result
             return result.copy()
 
@@ -95,7 +123,25 @@ class EntityResolver:
 
         if fuzzy_match is not None:
             candidate, score, _ = fuzzy_match
-            if score >= FUZZY_THRESHOLD:
+            if score >= AUTO_MATCH_THRESHOLD:
+                result = self._result(
+                    raw_name,
+                    candidate,
+                    "fuzzy",
+                    round(score / 100.0, 3),
+                )
+                self._persist_alias(raw_name, candidate)
+                self._normalized_aliases[normalized_name] = candidate
+                self._cache[normalized_name] = result
+                return result.copy()
+
+            if score >= LOW_CONFIDENCE_THRESHOLD:
+                LOGGER.warning(
+                    "Résolution fuzzy à confiance intermédiaire pour %r: %s (%0.1f%%).",
+                    raw_name,
+                    candidate,
+                    score,
+                )
                 result = self._result(
                     raw_name,
                     candidate,
@@ -105,25 +151,58 @@ class EntityResolver:
                 self._cache[normalized_name] = result
                 return result.copy()
 
-        if fuzzy_match is not None and OPENAI_API_KEY:
-            llm_result = self._resolve_with_llm(raw_name)
-            if (
-                llm_result is not None
-                and llm_result["canonical_name"] in self.canonical_names
-                and llm_result["confidence"] >= LLM_CONFIDENCE_THRESHOLD
-            ):
-                result = self._result(
-                    raw_name,
-                    llm_result["canonical_name"],
-                    "llm",
-                    llm_result["confidence"],
-                )
-                self._cache[normalized_name] = result
-                return result.copy()
-
         result = self._result(raw_name, None, "unresolved", 0.0)
         self._cache[normalized_name] = result
         return result.copy()
+
+    def _persist_alias(self, alias: str, canonical_name: str) -> None:
+        if not alias or len(alias) > 255:
+            return
+
+        if self._session is not None:
+            self._save_alias(self._session, alias, canonical_name)
+            return
+
+        with SessionLocal() as session:
+            self._save_alias(session, alias, canonical_name)
+            session.commit()
+
+    def _save_alias(self, session: Session, alias: str, canonical_name: str) -> None:
+        normalized_alias = self._normalize(alias)
+        team_id = session.scalar(
+            select(Team.id).where(Team.canonical_name == canonical_name)
+        )
+        if team_id is None:
+            LOGGER.warning(
+                "Alias fuzzy %r non persisté: équipe canonique %r absente de la base.",
+                alias,
+                canonical_name,
+            )
+            return
+
+        existing_alias = session.scalar(
+            select(TeamAlias).where(TeamAlias.normalized_alias == normalized_alias)
+        )
+        if existing_alias is not None:
+            if existing_alias.team_id != team_id:
+                LOGGER.warning(
+                    "Alias %r déjà associé à une autre équipe; association conservée.",
+                    alias,
+                )
+            return
+
+        try:
+            with session.begin_nested():
+                session.add(
+                    TeamAlias(
+                        team_id=team_id,
+                        alias=alias,
+                        normalized_alias=normalized_alias,
+                    )
+                )
+                session.flush()
+        except IntegrityError:
+            LOGGER.info("Alias %r déjà persisté par un autre traitement.", alias)
 
     @staticmethod
     def _result(
@@ -138,73 +217,6 @@ class EntityResolver:
             "method": method,
             "confidence": confidence,
         }
-
-    def _resolve_with_llm(self, raw_name: str) -> Optional[dict]:
-        if self._client is None:
-            self._client = OpenAI(api_key=OPENAI_API_KEY, timeout=15.0, max_retries=1)
-
-        schema = {
-            "type": "object",
-            "properties": {
-                "canonical_name": {
-                    "type": ["string", "null"],
-                    "enum": self.canonical_names + [None],
-                },
-                "confidence": {"type": "number"},
-            },
-            "required": ["canonical_name", "confidence"],
-            "additionalProperties": False,
-        }
-
-        try:
-            response = self._client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Resolve a football club alias to exactly one canonical name "
-                            "from the supplied list. Do not guess. If no confident match "
-                            "exists, return null with confidence 0. Return confidence "
-                            "between 0 and 1."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": json.dumps(
-                            {
-                                "raw_name": raw_name,
-                                "canonical_names": self.canonical_names,
-                            },
-                            ensure_ascii=False,
-                        ),
-                    },
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "club_entity_resolution",
-                        "strict": True,
-                        "schema": schema,
-                    },
-                },
-            )
-            content = response.choices[0].message.content
-            if not content:
-                return None
-
-            result = json.loads(content)
-            confidence = float(result["confidence"])
-            if not 0.0 <= confidence <= 1.0:
-                return None
-            return {
-                "canonical_name": result["canonical_name"],
-                "confidence": confidence,
-            }
-        except Exception:
-            LOGGER.exception("Échec du fallback OpenAI pour le nom %r.", raw_name)
-            return None
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

@@ -38,6 +38,20 @@ class Team(Base):
     )
 
 
+class TeamAlias(Base):
+    __tablename__ = "team_aliases"
+    __table_args__ = (
+        UniqueConstraint("normalized_alias", name="uq_team_aliases_normalized_alias"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(
+        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_alias: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
 class Fixture(Base):
     __tablename__ = "fixtures"
     __table_args__ = (

@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import text
 
 from src.database.connection import engine
+from src.reporting.drift_analyzer import MarketDriftAnalyzer
 
 
 LOGGER = logging.getLogger(__name__)
@@ -32,6 +33,14 @@ CLEAN_ODDS_QUERY = text(
          + 1.0 / clean_odds.odds_away) * 100 AS `Overround (%)`,
         clean_odds.captured_at AS `Horodatage d'ingestion`
     FROM clean_odds
+    JOIN (
+        SELECT fixture_id, bookmaker, MAX(captured_at) AS captured_at
+        FROM clean_odds
+        GROUP BY fixture_id, bookmaker
+    ) AS latest_odds
+        ON latest_odds.fixture_id = clean_odds.fixture_id
+        AND latest_odds.bookmaker = clean_odds.bookmaker
+        AND latest_odds.captured_at = clean_odds.captured_at
     JOIN fixtures AS f ON f.id = clean_odds.fixture_id
     JOIN teams AS home_team ON home_team.id = f.home_team_id
     JOIN teams AS away_team ON away_team.id = f.away_team_id
@@ -60,7 +69,7 @@ class ExcelReportGenerator:
         report_path = report_path.expanduser().resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
-        clean_odds_df, exceptions_df = self._load_dataframes()
+        clean_odds_df, exceptions_df, drift_df = self._load_dataframes()
         total_clean_odds = len(clean_odds_df.index)
         total_exceptions = len(exceptions_df.index)
         total_analyzed = total_clean_odds + total_exceptions
@@ -92,6 +101,9 @@ class ExcelReportGenerator:
             exceptions_df["Payload JSON brut"] = exceptions_df[
                 "Payload JSON brut"
             ].map(self._format_payload)
+        if "Variation (%)" in drift_df.columns:
+            drift_df = drift_df.copy()
+            drift_df["Variation (%)"] = drift_df["Variation (%)"] / 100
 
         with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
             summary_metrics.to_excel(
@@ -108,6 +120,7 @@ class ExcelReportGenerator:
             )
             clean_odds_df.to_excel(writer, sheet_name="Clean Odds", index=False)
             exceptions_df.to_excel(writer, sheet_name="DQ Exceptions Log", index=False)
+            drift_df.to_excel(writer, sheet_name="Market Trends & Drift", index=False)
 
             summary_sheet = writer.book["Executive Summary"]
             summary_sheet.merge_cells("A1:B1")
@@ -119,11 +132,12 @@ class ExcelReportGenerator:
         return report_path
 
     @staticmethod
-    def _load_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _load_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         with engine.connect() as connection:
             clean_odds_df = pd.read_sql(CLEAN_ODDS_QUERY, connection)
             exceptions_df = pd.read_sql(DQ_EXCEPTIONS_QUERY, connection)
-        return clean_odds_df, exceptions_df
+        drift_df = MarketDriftAnalyzer().get_significant_drifts()
+        return clean_odds_df, exceptions_df, drift_df
 
     @staticmethod
     def _format_payload(payload: object) -> str:
@@ -186,6 +200,40 @@ class ExcelReportGenerator:
             if worksheet.title == "Clean Odds":
                 for row_index in range(2, worksheet.max_row + 1):
                     worksheet.cell(row_index, 8).number_format = '0.00"%"'
+
+            if worksheet.title == "Market Trends & Drift":
+                variation_column = next(
+                    cell.column
+                    for cell in worksheet[1]
+                    if cell.value == "Variation (%)"
+                )
+                column_letter = get_column_letter(variation_column)
+                green_fill = PatternFill(fill_type="solid", fgColor="D9EAD3")
+                orange_fill = PatternFill(fill_type="solid", fgColor="FCE4D6")
+                for row_index in range(2, worksheet.max_row + 1):
+                    worksheet.cell(row_index, variation_column).number_format = (
+                        "+0.00%;-0.00%"
+                    )
+                if worksheet.max_row > 1:
+                    drift_range = "{}2:{}{}".format(
+                        column_letter,
+                        column_letter,
+                        worksheet.max_row,
+                    )
+                    worksheet.conditional_formatting.add(
+                        drift_range,
+                        FormulaRule(
+                            formula=["${}2<0".format(column_letter)],
+                            fill=green_fill,
+                        ),
+                    )
+                    worksheet.conditional_formatting.add(
+                        drift_range,
+                        FormulaRule(
+                            formula=["${}2>0".format(column_letter)],
+                            fill=orange_fill,
+                        ),
+                    )
 
             cls._adjust_column_widths(worksheet)
 

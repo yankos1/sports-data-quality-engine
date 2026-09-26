@@ -45,6 +45,8 @@ class LiveOddsScraper:
     def scrape_upcoming_fixtures(self) -> list[dict]:
         fixtures = []
         browser = None
+        window_start = datetime.now(timezone.utc) - timedelta(days=1)
+        window_end = window_start + timedelta(days=45)
 
         try:
             with sync_playwright() as playwright:
@@ -93,6 +95,12 @@ class LiveOddsScraper:
                         if kickoff is None:
                             LOGGER.debug("Horaire absent; ligne ignorée: %s", cell_texts)
                             continue
+                        if kickoff < window_start or kickoff > window_end:
+                            LOGGER.debug(
+                                "Rencontre hors fenêtre des 45 jours; ligne ignorée: %s",
+                                cell_texts,
+                            )
+                            continue
 
                         _, home_team, away_team = match
                         data_odd_values = row.locator("[data-odd]").evaluate_all(
@@ -130,7 +138,7 @@ class LiveOddsScraper:
         except PlaywrightError:
             LOGGER.exception("Impossible de récupérer les rencontres depuis %s", self.source_url)
         finally:
-            if browser is not None:
+            if browser is not None and browser.is_connected():
                 try:
                     browser.close()
                 except PlaywrightError:

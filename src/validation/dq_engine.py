@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from src.database.connection import SessionLocal
 from src.database.models import CleanOdds, DQException, Fixture, Team
 from src.reconciliation.entity_resolver import EntityResolver
+from src.validation.anomaly_detector import AnomalyDetector
 
 
 LOGGER = logging.getLogger(__name__)
@@ -49,6 +50,8 @@ class DQEngine:
             "odds_persisted": 0,
             "rejected_total": 0,
             "rejected_by_rule": {rule_code: 0 for rule_code in DQ_RULE_CODES},
+            "warnings_total": 0,
+            "warnings_by_rule": {},
         }
 
         with SessionLocal() as session:
@@ -57,7 +60,7 @@ class DQEngine:
                     select(Team.id, Team.canonical_name)
                 ).all()
                 team_ids = {canonical_name: team_id for team_id, canonical_name in team_rows}
-                resolver = EntityResolver(canonical_names=list(team_ids))
+                resolver = EntityResolver(canonical_names=list(team_ids), session=session)
                 existing_odds_keys = set(
                     session.execute(
                         select(
@@ -79,6 +82,7 @@ class DQEngine:
                     self._rejection_key(rule_code, message, source, rejected_payload)
                     for rule_code, message, source, rejected_payload in existing_rejections
                 }
+                anomaly_detector = AnomalyDetector()
 
                 for row_number, fixture_data in enumerate(raw_fixtures, start=1):
                     if not isinstance(fixture_data, dict):
@@ -234,6 +238,36 @@ class DQEngine:
                         metrics["fixtures_reused"] += 1
 
                     bookmaker = fixture_data.get("bookmaker") or "Unknown"
+                    alerts = anomaly_detector.evaluate_overround(
+                        float(overround * Decimal("100"))
+                    )
+                    peer_odds = self._get_latest_peer_odds(
+                        session,
+                        fixture.id,
+                        bookmaker,
+                    )
+                    for market_index, market_field in enumerate(ODDS_FIELDS):
+                        market_odds = [
+                            float(peer_row[market_index]) for peer_row in peer_odds
+                        ]
+                        alerts.extend(
+                            anomaly_detector.evaluate_cross_bookmaker(
+                                market_odds,
+                                float(odds_values[market_index]),
+                            )
+                        )
+                    for alert in alerts:
+                        self._record_warning(
+                            session,
+                            metrics,
+                            alert["rule_code"],
+                            alert["message"],
+                            {**fixture_data, "anomaly": alert},
+                            bookmaker,
+                            fixture.id,
+                            processed_rejection_keys,
+                        )
+
                     odds_key = (fixture.id, bookmaker, captured_at)
                     if odds_key in existing_odds_keys:
                         continue
@@ -250,6 +284,7 @@ class DQEngine:
                     )
                     existing_odds_keys.add(odds_key)
                     metrics["odds_persisted"] += 1
+                    session.flush()
 
                 metrics["rejected_total"] = sum(metrics["rejected_by_rule"].values())
                 session.commit()
@@ -286,6 +321,65 @@ class DQEngine:
         processed_rejection_keys.add(rejection_key)
         metrics["rejected_by_rule"][rule_code] = (
             metrics["rejected_by_rule"].get(rule_code, 0) + 1
+        )
+
+    def _record_warning(
+        self,
+        session: Session,
+        metrics: dict,
+        rule_code: str,
+        message: str,
+        fixture_data: dict,
+        source: Optional[str],
+        fixture_id: int,
+        processed_rejection_keys: set,
+    ) -> None:
+        warning_key = self._rejection_key(rule_code, message, source, fixture_data)
+        if warning_key in processed_rejection_keys:
+            return
+
+        session.add(
+            DQException(
+                fixture_id=fixture_id,
+                source=source,
+                rule_code=rule_code,
+                message=message,
+                rejected_payload=fixture_data,
+            )
+        )
+        processed_rejection_keys.add(warning_key)
+        metrics["warnings_total"] += 1
+        metrics["warnings_by_rule"][rule_code] = (
+            metrics["warnings_by_rule"].get(rule_code, 0) + 1
+        )
+
+    @staticmethod
+    def _get_latest_peer_odds(session: Session, fixture_id: int, bookmaker: str) -> list[tuple]:
+        latest_peer_captures = (
+            select(
+                CleanOdds.bookmaker.label("bookmaker"),
+                func.max(CleanOdds.captured_at).label("captured_at"),
+            )
+            .where(
+                CleanOdds.fixture_id == fixture_id,
+                CleanOdds.bookmaker != bookmaker,
+            )
+            .group_by(CleanOdds.bookmaker)
+            .subquery()
+        )
+        return list(
+            session.execute(
+                select(
+                    CleanOdds.odds_home,
+                    CleanOdds.odds_draw,
+                    CleanOdds.odds_away,
+                ).join(
+                    latest_peer_captures,
+                    (CleanOdds.bookmaker == latest_peer_captures.c.bookmaker)
+                    & (CleanOdds.captured_at == latest_peer_captures.c.captured_at)
+                    & (CleanOdds.fixture_id == fixture_id),
+                )
+            ).all()
         )
 
     @staticmethod
@@ -337,6 +431,7 @@ class DQEngine:
         )
         print("Cotes persistées dans clean_odds : {}".format(metrics["odds_persisted"]))
         print("Rejets insérés dans dq_exceptions : {}".format(metrics["rejected_total"]))
+        print("Avertissements insérés dans dq_exceptions : {}".format(metrics["warnings_total"]))
         for rule_code in DQ_RULE_CODES:
             print("  {} : {}".format(rule_code, metrics["rejected_by_rule"].get(rule_code, 0)))
 

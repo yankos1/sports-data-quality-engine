@@ -36,3 +36,15 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Data files and generated reports
+data/raw/*.json
+!data/raw/.gitkeep
+data/reports/*.xlsx
+!data/reports/.gitkeep
+data/golden/*.csv
+!data/golden/.gitkeep
+
+# Playwright artifacts
+test-results/
+.playwright/
