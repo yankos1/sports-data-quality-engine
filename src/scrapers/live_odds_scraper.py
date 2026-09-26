@@ -11,7 +11,10 @@ from playwright.sync_api import sync_playwright
 
 
 LOGGER = logging.getLogger(__name__)
-SOURCE_URL = "https://www.betexplorer.com/football/england/premier-league/fixtures/"
+SUPPORTED_LEAGUES = {
+    "premier-league": "https://www.betexplorer.com/football/england/premier-league/fixtures/",
+    "super-league-2": "https://www.betexplorer.com/football/greece/super-league-2/fixtures/",
+}
 BOOKMAKER_LABEL = "BetExplorer best odds"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -27,6 +30,11 @@ KICKOFF_PATTERN = re.compile(
     r"(?:\s*(?P<year>\d{4}))?\s+"
     r"(?P<hour>\d{1,2}):(?P<minute>\d{2})"
 )
+RELATIVE_KICKOFF_PATTERN = re.compile(
+    r"\b(?P<relative>today|tomorrow)\b.*?"
+    r"(?P<hour>\d{1,2}):(?P<minute>\d{2})",
+    re.IGNORECASE,
+)
 
 
 class LiveOddsScraper:
@@ -34,19 +42,33 @@ class LiveOddsScraper:
 
     def __init__(
         self,
-        source_url: str = SOURCE_URL,
+        league: str = "super-league-2",
+        max_days_ahead: int = 4,
+        source_url: Optional[str] = None,
         output_path: Optional[Path] = None,
         timeout_ms: int = 15000,
     ) -> None:
-        self.source_url = source_url
+        if league not in SUPPORTED_LEAGUES:
+            raise ValueError(
+                "Ligue non supportée {!r}; choix: {}".format(
+                    league,
+                    ", ".join(SUPPORTED_LEAGUES),
+                )
+            )
+        if max_days_ahead < 0:
+            raise ValueError("max_days_ahead doit être positif ou nul.")
+
+        self.league = league
+        self.max_days_ahead = max_days_ahead
+        self.source_url = source_url or SUPPORTED_LEAGUES[league]
         self.output_path = output_path or DEFAULT_OUTPUT_PATH
         self.timeout_ms = timeout_ms
 
     def scrape_upcoming_fixtures(self) -> list[dict]:
         fixtures = []
         browser = None
-        window_start = datetime.now(timezone.utc) - timedelta(days=1)
-        window_end = window_start + timedelta(days=45)
+        window_start = datetime.now(timezone.utc)
+        cutoff_date = window_start + timedelta(days=self.max_days_ahead)
 
         try:
             with sync_playwright() as playwright:
@@ -82,22 +104,24 @@ class LiveOddsScraper:
                         if not cell_texts:
                             continue
 
+                        kickoff = self._parse_kickoff(cell_texts)
+                        if kickoff is not None:
+                            last_kickoff = kickoff
+
                         match = self._find_teams(cell_texts)
                         if match is None:
                             continue
 
-                        kickoff = self._parse_kickoff(cell_texts)
-                        if kickoff is not None:
-                            last_kickoff = kickoff
-                        elif last_kickoff is not None:
+                        if kickoff is None:
                             kickoff = last_kickoff
 
                         if kickoff is None:
                             LOGGER.debug("Horaire absent; ligne ignorée: %s", cell_texts)
                             continue
-                        if kickoff < window_start or kickoff > window_end:
+                        if not self._is_within_window(kickoff, window_start, cutoff_date):
                             LOGGER.debug(
-                                "Rencontre hors fenêtre des 45 jours; ligne ignorée: %s",
+                                "Rencontre hors fenêtre de %s jours; ligne ignorée: %s",
+                                self.max_days_ahead,
                                 cell_texts,
                             )
                             continue
@@ -114,10 +138,13 @@ class LiveOddsScraper:
                             data_odd_values=data_odd_values,
                             dedicated_odd_values=dedicated_odd_values,
                         )
+                        if not self._has_active_market(odds):
+                            LOGGER.debug("Marché fermé ou incomplet; ligne ignorée: %s", cell_texts)
+                            continue
 
                         fixtures.append(
                             {
-                                "competition": "Premier League",
+                                "competition": self.league.replace("-", " ").title(),
                                 "kickoff_at": kickoff,
                                 "raw_home_team": home_team,
                                 "raw_away_team": away_team,
@@ -148,6 +175,18 @@ class LiveOddsScraper:
         return fixtures
 
     @staticmethod
+    def _is_within_window(
+        kickoff: datetime,
+        now: datetime,
+        cutoff_date: datetime,
+    ) -> bool:
+        return now <= kickoff <= cutoff_date
+
+    @staticmethod
+    def _has_active_market(odds: list[Optional[float]]) -> bool:
+        return len(odds) == 3 and all(odd is not None for odd in odds)
+
+    @staticmethod
     def _find_teams(cell_texts: list[str]):
         for index, text in enumerate(cell_texts):
             teams = MATCH_SEPARATOR.split(text, maxsplit=1)
@@ -156,14 +195,30 @@ class LiveOddsScraper:
         return None
 
     @staticmethod
-    def _parse_kickoff(cell_texts: list[str]) -> Optional[datetime]:
-        for text in cell_texts:
-            match = KICKOFF_PATTERN.search(text)
-            if match is None:
-                continue
+    def _parse_kickoff(
+        cell_texts: list[str],
+        now: Optional[datetime] = None,
+    ) -> Optional[datetime]:
+        reference_time = now or datetime.now(timezone.utc)
+        row_text = " ".join(cell_texts)
 
-            now = datetime.now(timezone.utc)
-            year = int(match.group("year") or now.year)
+        relative_match = RELATIVE_KICKOFF_PATTERN.search(row_text)
+        if relative_match is not None:
+            kickoff_date = reference_time.date()
+            if relative_match.group("relative").casefold() == "tomorrow":
+                kickoff_date += timedelta(days=1)
+            return datetime(
+                kickoff_date.year,
+                kickoff_date.month,
+                kickoff_date.day,
+                int(relative_match.group("hour")),
+                int(relative_match.group("minute")),
+                tzinfo=timezone.utc,
+            )
+
+        match = KICKOFF_PATTERN.search(row_text)
+        if match is not None:
+            year = int(match.group("year") or reference_time.year)
             kickoff = datetime(
                 year,
                 int(match.group("month")),
@@ -172,7 +227,10 @@ class LiveOddsScraper:
                 int(match.group("minute")),
                 tzinfo=timezone.utc,
             )
-            if match.group("year") is None and kickoff < now - timedelta(days=1):
+            if (
+                match.group("year") is None
+                and kickoff < reference_time - timedelta(days=1)
+            ):
                 kickoff = kickoff.replace(year=year + 1)
             return kickoff
         return None

@@ -1,506 +1,86 @@
 {
-  "scraped_at": "2026-09-26T09:24:19.657785+00:00",
-  "source_url": "https://www.betexplorer.com/football/england/premier-league/fixtures/",
+  "scraped_at": "2026-09-26T11:51:00.577142+00:00",
+  "source_url": "https://www.betexplorer.com/football/greece/super-league-2/fixtures/",
   "fixtures": [
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T11:30:00+00:00",
-      "raw_home_team": "Arsenal",
-      "raw_away_team": "Leeds",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T13:00:00+00:00",
+      "raw_home_team": "AEL Larissa",
+      "raw_away_team": "PAOK B",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.38,
-      "odds_draw": 4.83,
-      "odds_away": 7.74
+      "odds_home": 1.33,
+      "odds_draw": 4.19,
+      "odds_away": 8.45
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T14:00:00+00:00",
-      "raw_home_team": "Aston Villa",
-      "raw_away_team": "Brentford",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T13:00:00+00:00",
+      "raw_home_team": "Kalamaria",
+      "raw_away_team": "Karditsa",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.59,
-      "odds_draw": 3.53,
-      "odds_away": 2.55
+      "odds_home": 3.32,
+      "odds_draw": 2.93,
+      "odds_away": 2.14
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T14:00:00+00:00",
-      "raw_home_team": "Chelsea",
-      "raw_away_team": "Bournemouth",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.79,
-      "odds_draw": 4.02,
-      "odds_away": 3.94
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T14:00:00+00:00",
-      "raw_home_team": "Ipswich",
-      "raw_away_team": "Fulham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.68,
-      "odds_draw": 3.47,
-      "odds_away": 2.49
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T14:00:00+00:00",
-      "raw_home_team": "Sunderland",
-      "raw_away_team": "Brighton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.9,
-      "odds_draw": 3.45,
-      "odds_away": 2.34
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-10T16:30:00+00:00",
-      "raw_home_team": "Manchester Utd",
-      "raw_away_team": "Tottenham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.71,
-      "odds_draw": 4.1,
-      "odds_away": 4.32
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-11T13:00:00+00:00",
-      "raw_home_team": "Crystal Palace",
-      "raw_away_team": "Nottingham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.6,
-      "odds_draw": 3.32,
-      "odds_away": 2.66
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-11T13:00:00+00:00",
-      "raw_home_team": "Hull",
-      "raw_away_team": "Everton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 3.6,
-      "odds_draw": 3.35,
-      "odds_away": 2.06
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-11T15:30:00+00:00",
-      "raw_home_team": "Liverpool",
-      "raw_away_team": "Manchester City",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.58,
-      "odds_draw": 3.66,
-      "odds_away": 2.49
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-12T19:00:00+00:00",
-      "raw_home_team": "Coventry",
-      "raw_away_team": "Newcastle",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 3.28,
-      "odds_draw": 3.61,
-      "odds_away": 2.09
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-17T11:30:00+00:00",
-      "raw_home_team": "Everton",
-      "raw_away_team": "Chelsea",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.84,
-      "odds_draw": 3.68,
-      "odds_away": 2.26
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-17T14:00:00+00:00",
-      "raw_home_team": "Brentford",
-      "raw_away_team": "Liverpool",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.71,
-      "odds_draw": 3.64,
-      "odds_away": 2.37
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-17T14:00:00+00:00",
-      "raw_home_team": "Fulham",
-      "raw_away_team": "Hull",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.66,
-      "odds_draw": 3.99,
-      "odds_away": 4.77
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-17T14:00:00+00:00",
-      "raw_home_team": "Manchester City",
-      "raw_away_team": "Ipswich",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T13:00:00+00:00",
+      "raw_home_team": "Niki Volos",
+      "raw_away_team": "Chrisoupolis",
       "bookmaker": "BetExplorer best odds",
       "odds_home": 1.22,
-      "odds_draw": 6.57,
-      "odds_away": 10.67
+      "odds_draw": 4.38,
+      "odds_away": 15.17
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-17T16:30:00+00:00",
-      "raw_home_team": "Newcastle",
-      "raw_away_team": "Aston Villa",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T13:00:00+00:00",
+      "raw_home_team": "Panionios",
+      "raw_away_team": "Zakynthos",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.07,
-      "odds_draw": 3.72,
-      "odds_away": 3.19
+      "odds_home": 1.21,
+      "odds_draw": 4.73,
+      "odds_away": 13.63
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-18T13:00:00+00:00",
-      "raw_home_team": "Bournemouth",
-      "raw_away_team": "Sunderland",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T14:00:00+00:00",
+      "raw_home_team": "Ellas Syrou",
+      "raw_away_team": "Pyrgos",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.99,
-      "odds_draw": 3.56,
-      "odds_away": 3.56
+      "odds_home": 1.65,
+      "odds_draw": 3.44,
+      "odds_away": 4.82
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-18T13:00:00+00:00",
-      "raw_home_team": "Brighton",
-      "raw_away_team": "Crystal Palace",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-27T15:15:00+00:00",
+      "raw_home_team": "Panserraikos",
+      "raw_away_team": "Olympiacos Piraeus B",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.54,
-      "odds_draw": 4.39,
-      "odds_away": 5.32
+      "odds_home": 1.27,
+      "odds_draw": 4.42,
+      "odds_away": 11.0
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-18T13:00:00+00:00",
-      "raw_home_team": "Leeds",
-      "raw_away_team": "Manchester Utd",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-28T13:00:00+00:00",
+      "raw_home_team": "Athens Kallithea",
+      "raw_away_team": "Asteras Tripolis B",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 2.83,
-      "odds_draw": 3.56,
-      "odds_away": 2.33
+      "odds_home": 1.6,
+      "odds_draw": 3.35,
+      "odds_away": 5.38
     },
     {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-18T15:30:00+00:00",
-      "raw_home_team": "Nottingham",
-      "raw_away_team": "Arsenal",
+      "competition": "Super League 2",
+      "kickoff_at": "2026-09-28T13:00:00+00:00",
+      "raw_home_team": "Marko",
+      "raw_away_team": "Panthrakikos",
       "bookmaker": "BetExplorer best odds",
-      "odds_home": 5.58,
-      "odds_draw": 3.88,
-      "odds_away": 1.59
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-19T19:00:00+00:00",
-      "raw_home_team": "Tottenham",
-      "raw_away_team": "Coventry",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": 1.48,
-      "odds_draw": 4.48,
-      "odds_away": 5.93
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-23T19:00:00+00:00",
-      "raw_home_team": "Ipswich",
-      "raw_away_team": "Nottingham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-24T11:30:00+00:00",
-      "raw_home_team": "Aston Villa",
-      "raw_away_team": "Manchester City",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-24T14:00:00+00:00",
-      "raw_home_team": "Arsenal",
-      "raw_away_team": "Everton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-24T14:00:00+00:00",
-      "raw_home_team": "Coventry",
-      "raw_away_team": "Fulham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-24T16:30:00+00:00",
-      "raw_home_team": "Chelsea",
-      "raw_away_team": "Tottenham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-25T14:00:00+00:00",
-      "raw_home_team": "Crystal Palace",
-      "raw_away_team": "Newcastle",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-25T14:00:00+00:00",
-      "raw_home_team": "Hull",
-      "raw_away_team": "Brentford",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-25T14:00:00+00:00",
-      "raw_home_team": "Liverpool",
-      "raw_away_team": "Brighton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-25T14:00:00+00:00",
-      "raw_home_team": "Manchester Utd",
-      "raw_away_team": "Bournemouth",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-25T16:30:00+00:00",
-      "raw_home_team": "Sunderland",
-      "raw_away_team": "Leeds",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T12:30:00+00:00",
-      "raw_home_team": "Chelsea",
-      "raw_away_team": "Manchester Utd",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T15:00:00+00:00",
-      "raw_home_team": "Bournemouth",
-      "raw_away_team": "Leeds",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T15:00:00+00:00",
-      "raw_home_team": "Brentford",
-      "raw_away_team": "Nottingham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T15:00:00+00:00",
-      "raw_home_team": "Coventry",
-      "raw_away_team": "Sunderland",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T15:00:00+00:00",
-      "raw_home_team": "Hull",
-      "raw_away_team": "Ipswich",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T15:00:00+00:00",
-      "raw_home_team": "Manchester City",
-      "raw_away_team": "Brighton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T17:30:00+00:00",
-      "raw_home_team": "Tottenham",
-      "raw_away_team": "Crystal Palace",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-10-31T20:00:00+00:00",
-      "raw_home_team": "Aston Villa",
-      "raw_away_team": "Fulham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-01T16:30:00+00:00",
-      "raw_home_team": "Liverpool",
-      "raw_away_team": "Arsenal",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-02T20:00:00+00:00",
-      "raw_home_team": "Newcastle",
-      "raw_away_team": "Everton",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-06T20:00:00+00:00",
-      "raw_home_team": "Everton",
-      "raw_away_team": "Coventry",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-07T12:30:00+00:00",
-      "raw_home_team": "Leeds",
-      "raw_away_team": "Tottenham",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-07T15:00:00+00:00",
-      "raw_home_team": "Arsenal",
-      "raw_away_team": "Hull",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-07T15:00:00+00:00",
-      "raw_home_team": "Fulham",
-      "raw_away_team": "Newcastle",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-07T17:30:00+00:00",
-      "raw_home_team": "Nottingham",
-      "raw_away_team": "Manchester City",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-08T14:00:00+00:00",
-      "raw_home_team": "Brighton",
-      "raw_away_team": "Brentford",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-08T14:00:00+00:00",
-      "raw_home_team": "Crystal Palace",
-      "raw_away_team": "Liverpool",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-08T14:00:00+00:00",
-      "raw_home_team": "Ipswich",
-      "raw_away_team": "Bournemouth",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-08T14:00:00+00:00",
-      "raw_home_team": "Sunderland",
-      "raw_away_team": "Chelsea",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
-    },
-    {
-      "competition": "Premier League",
-      "kickoff_at": "2026-11-08T16:30:00+00:00",
-      "raw_home_team": "Manchester Utd",
-      "raw_away_team": "Aston Villa",
-      "bookmaker": "BetExplorer best odds",
-      "odds_home": null,
-      "odds_draw": null,
-      "odds_away": null
+      "odds_home": 1.41,
+      "odds_draw": 3.9,
+      "odds_away": 6.77
     }
   ]
 }

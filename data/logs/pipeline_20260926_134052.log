@@ -1,0 +1,62 @@
+[26-09-26 13:40:52,41] Verification de la version Python. 
+[26-09-26 13:40:52,45] Etape 1/2: ingestion et validation DQ. 
+2026-09-26 13:40:53,387 INFO Étape Golden Source ignorée (--skip-golden).
+2026-09-26 13:40:53,387 INFO Étape 2/4 : scraping des rencontres et des cotes à venir.
+2026-09-26 13:40:53,863 ERROR Impossible de récupérer les rencontres depuis https://www.betexplorer.com/football/greece/super-league-2/fixtures/
+Traceback (most recent call last):
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\src\scrapers\live_odds_scraper.py", line 75, in scrape_upcoming_fixtures
+    browser = playwright.chromium.launch(headless=True)
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\sync_api\_generated.py", line 16814, in launch
+    self._sync(
+    ~~~~~~~~~~^
+        self._impl_obj.launch(
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<17 lines>...
+        )
+        ^
+    )
+    ^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ~~~~~~~~~~~^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_browser_type.py", line 101, in launch
+    await self._channel.send(
+        "launch", TimeoutSettings.launch_timeout, params
+    )
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 76, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 632, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at C:\Users\yanni\AppData\Local\ms-playwright\chromium_headless_shell-1243\chrome-headless-shell-win64\chrome-headless-shell.exe
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
+\u2551 Looks like Playwright was just installed or updated.       \u2551
+\u2551 Please run the following command to download new browsers: \u2551
+\u2551                                                            \u2551
+\u2551     playwright install                                     \u2551
+\u2551                                                            \u2551
+\u2551 <3 Playwright Team                                         \u2551
+\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
+2026-09-26 13:40:53,865 INFO Charge brute sauvegardée dans C:\Users\yanni\Projects\sports-data-quality-engine\data\raw\raw_odds_latest.json
+2026-09-26 13:40:53,865 INFO Scraping terminé : 0 rencontres extraites.
+2026-09-26 13:40:53,865 INFO Étape 3/4 : validation DQ et persistance en base.
+2026-09-26 13:40:53,949 INFO Validation terminée : 0 cotes persistées, 0 rejets.
+2026-09-26 13:40:53,949 INFO Étape rapport ignorée (--skip-report).
+2026-09-26 13:40:53,949 INFO Temps d'exécution total : 0.56 secondes.
+Rencontres brutes analysées : 0
+Rencontres insérées dans fixtures : 0 (réutilisées : 0)
+Cotes persistées dans clean_odds : 0
+Snapshots identiques ignorés (< 15 min) : 0
+Rejets insérés dans dq_exceptions : 0
+Avertissements insérés dans dq_exceptions : 0
+  DQ_ERR_UNRESOLVED_TEAM : 0
+  DQ_INFO_UNOPENED_MARKET : 0
+  DQ_ERR_INVALID_ODDS : 0
+  DQ_ERR_SUSPECT_PERMUTATION : 0
+[26-09-26 13:40:54,16] Etape 2/2: regeneration du rapport Excel. 
+INFO: Rapport qualité généré : C:\Users\yanni\Projects\sports-data-quality-engine\data\reports\dq_report_latest.xlsx
+C:\Users\yanni\Projects\sports-data-quality-engine\data\reports\dq_report_latest.xlsx
+[26-09-26 13:40:55,57] Pipeline et rapport termines avec succes. 

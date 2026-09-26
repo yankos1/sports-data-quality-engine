@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -10,7 +12,9 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy import text
 
-from src.database.connection import engine
+from src.analysis.drift_analyzer import OddsDriftAnalyzer
+from src.database.connection import SessionLocal, engine
+from src.reporting.clv_analyzer import CLVAnalyzer
 from src.reporting.drift_analyzer import MarketDriftAnalyzer
 
 
@@ -69,7 +73,10 @@ class ExcelReportGenerator:
         report_path = report_path.expanduser().resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
-        clean_odds_df, exceptions_df, drift_df = self._load_dataframes()
+        clean_odds_df, exceptions_df, drift_df, clv_df, odds_drift_df = (
+            self._load_dataframes()
+        )
+        odds_drift_df, clv_beat_rate = self._prepare_odds_drift(odds_drift_df)
         total_clean_odds = len(clean_odds_df.index)
         total_exceptions = len(exceptions_df.index)
         total_analyzed = total_clean_odds + total_exceptions
@@ -81,13 +88,13 @@ class ExcelReportGenerator:
             if total_exceptions
             else pd.Series(dtype="int64")
         )
-
         summary_metrics = pd.DataFrame(
             [
                 ("Total cotes analysées", total_analyzed),
                 ("Cotes conformes (clean_odds)", total_clean_odds),
                 ("Anomalies (dq_exceptions)", total_exceptions),
                 ("Data Quality Score", quality_score),
+                ("Taux de battement CLV (%)", clv_beat_rate),
             ],
             columns=["Métrique", "Valeur"],
         )
@@ -104,40 +111,149 @@ class ExcelReportGenerator:
         if "Variation (%)" in drift_df.columns:
             drift_df = drift_df.copy()
             drift_df["Variation (%)"] = drift_df["Variation (%)"] / 100
+        if not clv_df.empty:
+            clv_df = clv_df.copy()
+            clv_df["CLV (%)"] = clv_df["CLV (%)"] / 100
+            clv_df["Gain Fair Proba (pts)"] = clv_df["Gain Fair Proba (pts)"] / 100
+        if not odds_drift_df.empty:
+            odds_drift_df = odds_drift_df.copy()
+            odds_drift_df["Drift 1 (%)"] = odds_drift_df["Drift 1 (%)"] / 100
+            odds_drift_df["Drift 2 (%)"] = odds_drift_df["Drift 2 (%)"] / 100
 
-        with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
-            summary_metrics.to_excel(
-                writer,
-                sheet_name="Executive Summary",
-                startrow=2,
-                index=False,
-            )
-            anomaly_counts.to_excel(
-                writer,
-                sheet_name="Executive Summary",
-                startrow=9,
-                index=False,
-            )
-            clean_odds_df.to_excel(writer, sheet_name="Clean Odds", index=False)
-            exceptions_df.to_excel(writer, sheet_name="DQ Exceptions Log", index=False)
-            drift_df.to_excel(writer, sheet_name="Market Trends & Drift", index=False)
+        file_descriptor, temporary_name = tempfile.mkstemp(
+            prefix="{}-".format(report_path.stem),
+            suffix=report_path.suffix,
+            dir=report_path.parent,
+        )
+        os.close(file_descriptor)
+        temporary_path = Path(temporary_name)
+        try:
+            with pd.ExcelWriter(temporary_path, engine="openpyxl") as writer:
+                summary_metrics.to_excel(
+                    writer,
+                    sheet_name="Synthèse DQ",
+                    startrow=2,
+                    index=False,
+                )
+                anomaly_counts.to_excel(
+                    writer,
+                    sheet_name="Synthèse DQ",
+                    startrow=9,
+                    index=False,
+                )
+                clean_odds_df.to_excel(writer, sheet_name="Clean Odds", index=False)
+                exceptions_df.to_excel(writer, sheet_name="DQ Exceptions Log", index=False)
+                drift_df.to_excel(writer, sheet_name="Market Trends & Drift", index=False)
+                clv_df.to_excel(writer, sheet_name="CLV Backtest Analysis", index=False)
+                odds_drift_df.to_excel(writer, sheet_name="Analyse Odds Drift", index=False)
 
-            summary_sheet = writer.book["Executive Summary"]
-            summary_sheet.merge_cells("A1:B1")
-            summary_sheet["A1"] = "Executive Summary"
-            summary_sheet["A9"] = "Anomalies par règle"
-            self._style_workbook(writer.book)
+                summary_sheet = writer.book["Synthèse DQ"]
+                summary_sheet.merge_cells("A1:B1")
+                summary_sheet["A1"] = "Synthèse DQ"
+                summary_sheet["A9"] = "Anomalies par règle"
+                self._style_workbook(writer.book)
+
+            os.replace(temporary_path, report_path)
+        except PermissionError as error:
+            LOGGER.exception("Le rapport Excel est verrouillé ou inaccessible: %s", report_path)
+            raise PermissionError(
+                "Impossible de remplacer le rapport; fermez le classeur s'il est ouvert: {}".format(
+                    report_path
+                )
+            ) from error
+        finally:
+            if temporary_path.exists():
+                try:
+                    temporary_path.unlink()
+                except OSError:
+                    LOGGER.warning("Impossible de supprimer le fichier temporaire %s", temporary_path)
 
         LOGGER.info("Rapport qualité généré : %s", report_path)
         return report_path
 
     @staticmethod
-    def _load_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def _load_dataframes() -> tuple[
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+    ]:
         with engine.connect() as connection:
             clean_odds_df = pd.read_sql(CLEAN_ODDS_QUERY, connection)
             exceptions_df = pd.read_sql(DQ_EXCEPTIONS_QUERY, connection)
         drift_df = MarketDriftAnalyzer().get_significant_drifts()
-        return clean_odds_df, exceptions_df, drift_df
+        clv_df = CLVAnalyzer().get_historical_clv()
+        with SessionLocal() as session:
+            odds_analyzer = OddsDriftAnalyzer(session)
+            opening_closing = odds_analyzer.get_opening_and_closing_odds()
+            odds_drift_df = odds_analyzer.calculate_clv_metrics(opening_closing)
+        return clean_odds_df, exceptions_df, drift_df, clv_df, odds_drift_df
+
+    @staticmethod
+    def _prepare_odds_drift(
+        metrics: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, object]:
+        output_columns = [
+            "Date coup d'envoi UTC",
+            "Compétition",
+            "Équipe Domicile",
+            "Équipe Extérieur",
+            "Cote 1 (Ouverture)",
+            "Cote 1 (Actuelle)",
+            "Drift 1 (%)",
+            "Cote 2 (Ouverture)",
+            "Cote 2 (Actuelle)",
+            "Drift 2 (%)",
+            "CLV Favorable (Oui/Non)",
+            "Nb Snapshots capturés",
+        ]
+        if metrics.empty:
+            return pd.DataFrame(columns=output_columns), "Aucun snapshot disponible"
+
+        favorite_columns = ["open_odds_home", "open_odds_draw", "open_odds_away"]
+        outcomes = {"open_odds_home": "home", "open_odds_draw": "draw", "open_odds_away": "away"}
+        favorite_keys = metrics[favorite_columns].idxmin(axis=1)
+        open_favorite = [
+            row[key] for (_, row), key in zip(metrics.iterrows(), favorite_keys)
+        ]
+        close_favorite = [
+            row["close_odds_{}".format(outcomes[key])]
+            for (_, row), key in zip(metrics.iterrows(), favorite_keys)
+        ]
+        snapshot_counts = pd.to_numeric(metrics["snapshot_count"], errors="coerce").fillna(0)
+        clv_won = [opening > closing for opening, closing in zip(open_favorite, close_favorite)]
+        statuses = [
+            "En attente de snapshots (T0 unique)"
+            if snapshot_count < 2
+            else ("Oui" if beaten else "Non")
+            for snapshot_count, beaten in zip(snapshot_counts, clv_won)
+        ]
+        evaluable = snapshot_counts >= 2
+        beat_rate = (
+            float(pd.Series(clv_won, index=metrics.index).loc[evaluable].mean())
+            if evaluable.any()
+            else "En attente de snapshots (T0 unique)"
+        )
+
+        odds_drift_df = pd.DataFrame(
+            {
+                "Date coup d'envoi UTC": metrics.get("kickoff_at"),
+                "Compétition": metrics.get("competition"),
+                "Équipe Domicile": metrics.get("home_team"),
+                "Équipe Extérieur": metrics.get("away_team"),
+                "Cote 1 (Ouverture)": metrics["open_odds_home"],
+                "Cote 1 (Actuelle)": metrics["close_odds_home"],
+                "Drift 1 (%)": metrics["drift_home_pct"],
+                "Cote 2 (Ouverture)": metrics["open_odds_away"],
+                "Cote 2 (Actuelle)": metrics["close_odds_away"],
+                "Drift 2 (%)": metrics["drift_away_pct"],
+                "CLV Favorable (Oui/Non)": statuses,
+                "Nb Snapshots capturés": snapshot_counts.astype(int),
+            },
+            index=metrics.index,
+        )
+        return odds_drift_df[output_columns], beat_rate
 
     @staticmethod
     def _format_payload(payload: object) -> str:
@@ -165,7 +281,7 @@ class ExcelReportGenerator:
         )
 
         for worksheet in workbook.worksheets:
-            worksheet.freeze_panes = "A2" if worksheet.title != "Executive Summary" else "A4"
+            worksheet.freeze_panes = "A2" if worksheet.title != "Synthèse DQ" else "A4"
             worksheet.sheet_view.showGridLines = False
 
             for row in worksheet.iter_rows():
@@ -174,7 +290,7 @@ class ExcelReportGenerator:
                     cell.alignment = Alignment(vertical="top", wrap_text=True)
 
             header_rows = [1]
-            if worksheet.title == "Executive Summary":
+            if worksheet.title == "Synthèse DQ":
                 header_rows = [3, 10]
                 worksheet["A1"].fill = title_fill
                 worksheet["A1"].font = title_font
@@ -194,8 +310,13 @@ class ExcelReportGenerator:
                             wrap_text=True,
                         )
 
-            if worksheet.title == "Executive Summary":
-                worksheet[7][1].number_format = "0.00%"
+            if worksheet.title == "Synthèse DQ":
+                for row_index in range(4, worksheet.max_row + 1):
+                    if worksheet.cell(row_index, 1).value in (
+                        "Data Quality Score",
+                        "Taux de battement CLV (%)",
+                    ):
+                        worksheet.cell(row_index, 2).number_format = "0.00%"
 
             if worksheet.title == "Clean Odds":
                 for row_index in range(2, worksheet.max_row + 1):
@@ -272,6 +393,97 @@ class ExcelReportGenerator:
                         FormulaRule(
                             formula=["${}2>0".format(column_letter)],
                             fill=orange_fill,
+                        ),
+                    )
+
+            if worksheet.title == "CLV Backtest Analysis":
+                header_columns = {
+                    cell.value: cell.column for cell in worksheet[1] if cell.value
+                }
+                if "CLV (%)" in header_columns:
+                    clv_column = header_columns["CLV (%)"]
+                    for row_index in range(2, worksheet.max_row + 1):
+                        worksheet.cell(row_index, clv_column).number_format = (
+                            "+0.00%;-0.00%"
+                        )
+                        worksheet.cell(
+                            row_index,
+                            header_columns["Gain Fair Proba (pts)"],
+                        ).number_format = "+0.00%;-0.00%"
+                        for odds_column in ("Cote Prise", "Cote Clôture"):
+                            worksheet.cell(
+                                row_index,
+                                header_columns[odds_column],
+                            ).number_format = "0.00"
+
+                if "CLV (%)" in header_columns and worksheet.max_row > 1:
+                    clv_letter = get_column_letter(clv_column)
+                    clv_range = "{}2:{}{}".format(
+                        clv_letter,
+                        clv_letter,
+                        worksheet.max_row,
+                    )
+                    worksheet.conditional_formatting.add(
+                        clv_range,
+                        FormulaRule(
+                            formula=["${}2>0".format(clv_letter)],
+                            fill=PatternFill(fill_type="solid", fgColor="D9EAD3"),
+                        ),
+                    )
+                    worksheet.conditional_formatting.add(
+                        clv_range,
+                        FormulaRule(
+                            formula=["${}2<0".format(clv_letter)],
+                            fill=PatternFill(fill_type="solid", fgColor="FCE8E6"),
+                        ),
+                    )
+
+            if worksheet.title == "Analyse Odds Drift":
+                header_columns = {
+                    cell.value: cell.column for cell in worksheet[1] if cell.value
+                }
+                for row_index in range(2, worksheet.max_row + 1):
+                    for drift_column in ("Drift 1 (%)", "Drift 2 (%)"):
+                        worksheet.cell(
+                            row_index,
+                            header_columns[drift_column],
+                        ).number_format = "+0.00%;-0.00%"
+                    for odds_column in (
+                        "Cote 1 (Ouverture)",
+                        "Cote 1 (Actuelle)",
+                        "Cote 2 (Ouverture)",
+                        "Cote 2 (Actuelle)",
+                    ):
+                        worksheet.cell(
+                            row_index,
+                            header_columns[odds_column],
+                        ).number_format = "0.00"
+                    worksheet.cell(
+                        row_index,
+                        header_columns["Nb Snapshots capturés"],
+                    ).number_format = "0"
+
+                if worksheet.max_row > 1:
+                    clv_column = get_column_letter(
+                        header_columns["CLV Favorable (Oui/Non)"]
+                    )
+                    clv_range = "{}2:{}{}".format(
+                        clv_column,
+                        clv_column,
+                        worksheet.max_row,
+                    )
+                    worksheet.conditional_formatting.add(
+                        clv_range,
+                        FormulaRule(
+                            formula=['${}2="Oui"'.format(clv_column)],
+                            fill=PatternFill(fill_type="solid", fgColor="D9EAD3"),
+                        ),
+                    )
+                    worksheet.conditional_formatting.add(
+                        clv_range,
+                        FormulaRule(
+                            formula=['${}2="Non"'.format(clv_column)],
+                            fill=PatternFill(fill_type="solid", fgColor="FCE8E6"),
                         ),
                     )
 

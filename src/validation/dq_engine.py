@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Optional
@@ -48,6 +48,7 @@ class DQEngine:
             "fixtures_inserted": 0,
             "fixtures_reused": 0,
             "odds_persisted": 0,
+            "snapshots_skipped_duplicates": 0,
             "rejected_total": 0,
             "rejected_by_rule": {rule_code: 0 for rule_code in DQ_RULE_CODES},
             "warnings_total": 0,
@@ -61,6 +62,25 @@ class DQEngine:
                 ).all()
                 team_ids = {canonical_name: team_id for team_id, canonical_name in team_rows}
                 resolver = EntityResolver(canonical_names=list(team_ids), session=session)
+                league_overrounds = {}
+                historical_odds = session.execute(
+                    select(
+                        Fixture.competition,
+                        CleanOdds.odds_home,
+                        CleanOdds.odds_draw,
+                        CleanOdds.odds_away,
+                    ).join(Fixture, Fixture.id == CleanOdds.fixture_id)
+                ).all()
+                for competition_name, home_odd, draw_odd, away_odd in historical_odds:
+                    league_overround = float(
+                        (Decimal("1") / home_odd
+                         + Decimal("1") / draw_odd
+                         + Decimal("1") / away_odd)
+                        * Decimal("100")
+                    )
+                    league_overrounds.setdefault(competition_name, []).append(
+                        league_overround
+                    )
                 existing_odds_keys = set(
                     session.execute(
                         select(
@@ -238,8 +258,28 @@ class DQEngine:
                         metrics["fixtures_reused"] += 1
 
                     bookmaker = fixture_data.get("bookmaker") or "Unknown"
+                    odds_key = (fixture.id, bookmaker, captured_at)
+                    duplicate_since = captured_at - timedelta(minutes=15)
+                    has_recent_identical_snapshot = session.scalar(
+                        select(CleanOdds.id)
+                        .where(
+                            CleanOdds.fixture_id == fixture.id,
+                            CleanOdds.bookmaker == bookmaker,
+                            CleanOdds.odds_home == odds_home,
+                            CleanOdds.odds_draw == odds_draw,
+                            CleanOdds.odds_away == odds_away,
+                            CleanOdds.captured_at > duplicate_since,
+                            CleanOdds.captured_at <= captured_at,
+                        )
+                        .limit(1)
+                    ) is not None
+                    if odds_key in existing_odds_keys or has_recent_identical_snapshot:
+                        metrics["snapshots_skipped_duplicates"] += 1
+                        continue
+
                     alerts = anomaly_detector.evaluate_overround(
-                        float(overround * Decimal("100"))
+                        float(overround * Decimal("100")),
+                        league_overrounds.get(competition, []),
                     )
                     peer_odds = self._get_latest_peer_odds(
                         session,
@@ -268,10 +308,6 @@ class DQEngine:
                             processed_rejection_keys,
                         )
 
-                    odds_key = (fixture.id, bookmaker, captured_at)
-                    if odds_key in existing_odds_keys:
-                        continue
-
                     session.add(
                         CleanOdds(
                             fixture_id=fixture.id,
@@ -285,6 +321,9 @@ class DQEngine:
                     existing_odds_keys.add(odds_key)
                     metrics["odds_persisted"] += 1
                     session.flush()
+                    league_overrounds.setdefault(competition, []).append(
+                        float(overround * Decimal("100"))
+                    )
 
                 metrics["rejected_total"] = sum(metrics["rejected_by_rule"].values())
                 session.commit()
@@ -430,6 +469,11 @@ class DQEngine:
             )
         )
         print("Cotes persistées dans clean_odds : {}".format(metrics["odds_persisted"]))
+        print(
+            "Snapshots identiques ignorés (< 15 min) : {}".format(
+                metrics["snapshots_skipped_duplicates"]
+            )
+        )
         print("Rejets insérés dans dq_exceptions : {}".format(metrics["rejected_total"]))
         print("Avertissements insérés dans dq_exceptions : {}".format(metrics["warnings_total"]))
         for rule_code in DQ_RULE_CODES:

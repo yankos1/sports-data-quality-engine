@@ -1,0 +1,48 @@
+[26-09-26 13:43:44,88] Verification de la version Python. 
+[26-09-26 13:43:44,91] Etape 1/2: ingestion et validation DQ. 
+2026-09-26 13:43:45,863 INFO Étape Golden Source ignorée (--skip-golden).
+2026-09-26 13:43:45,863 INFO Étape 2/4 : scraping des rencontres et des cotes à venir.
+2026-09-26 13:46:22,081 WARNING Échec de fermeture du navigateur Chromium.
+2026-09-26 13:46:22,082 INFO Charge brute sauvegardée dans C:\Users\yanni\Projects\sports-data-quality-engine\data\raw\raw_odds_latest.json
+2026-09-26 13:46:22,082 INFO Temps d'exécution total : 156.22 secondes.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\src\main.py", line 105, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\src\main.py", line 78, in main
+    ).scrape_upcoming_fixtures()
+      ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\src\scrapers\live_odds_scraper.py", line 170, in scrape_upcoming_fixtures
+    context.close()
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\sync_api\_generated.py", line 15470, in close
+    return mapping.from_maybe_impl(self._sync(self._impl_obj.close(reason=reason)))
+                                   ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_sync_base.py", line 113, in _sync
+    self._dispatcher_fiber.switch()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\sync_api\_context_manager.py", line 55, in greenlet_main
+    self._loop.run_until_complete(self._connection.run_as_sync())
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yanni\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 712, in run_until_complete
+    self.run_forever()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\yanni\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 683, in run_forever
+    self._run_once()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\yanni\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2004, in _run_once
+    event_list = self._selector.select(timeout)
+  File "C:\Users\yanni\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 446, in select
+    self._poll(timeout)
+    ~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\yanni\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 775, in _poll
+    status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
+KeyboardInterrupt
+2026-09-26 13:46:22,178 ERROR Future exception was never retrieved
+future: <Future finished exception=TargetClosedError('Target page, context or browser has been closed')>
+playwright._impl._errors.TargetClosedError: Target page, context or browser has been closed
+2026-09-26 13:46:22,178 ERROR Task was destroyed but it is pending!
+task: <Task cancelling name='Task-10' coro=<BrowserContext.close() running at C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_browser_context.py:594> wait_for=<Future finished result=None> cb=[SyncBase._sync.<locals>.<lambda>() at C:\Users\yanni\Projects\sports-data-quality-engine\.venv\Lib\site-packages\playwright\_impl\_sync_base.py:111]>
+^C

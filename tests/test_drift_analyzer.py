@@ -16,6 +16,7 @@ from src.reporting.drift_analyzer import (
     calculate_fair_probabilities,
 )
 from src.reporting.excel_exporter import ExcelReportGenerator
+from src.analysis.drift_analyzer import OddsDriftAnalyzer
 
 
 @pytest.fixture
@@ -71,7 +72,7 @@ def drift_database(monkeypatch):
         session.commit()
 
     monkeypatch.setattr(drift_analyzer_module, "engine", test_engine)
-    yield
+    yield test_session_factory
     test_engine.dispose()
 
 
@@ -117,6 +118,74 @@ def test_balanced_market_fair_probabilities_sum_to_one():
     assert sum(probabilities) == pytest.approx(1.0, abs=1e-6)
 
 
+def test_odds_drift_and_clv_metrics_use_three_time_snapshots():
+    snapshots = pd.DataFrame(
+        [
+            {
+                "fixture_id": 101,
+                "competition": "Premier League",
+                "bookmaker": "Bookmaker A",
+                "captured_at": "2026-09-25T15:00:00Z",
+                "odds_home": 2.10,
+                "odds_draw": 3.40,
+                "odds_away": 3.40,
+            },
+            {
+                "fixture_id": 101,
+                "competition": "Premier League",
+                "bookmaker": "Bookmaker A",
+                "captured_at": "2026-09-26T15:00:00Z",
+                "odds_home": 2.00,
+                "odds_draw": 3.45,
+                "odds_away": 3.45,
+            },
+            {
+                "fixture_id": 101,
+                "competition": "Premier League",
+                "bookmaker": "Bookmaker A",
+                "captured_at": "2026-09-27T14:30:00Z",
+                "odds_home": 1.90,
+                "odds_draw": 3.50,
+                "odds_away": 3.50,
+            },
+        ]
+    )
+    analyzer = OddsDriftAnalyzer(snapshots)
+
+    opening_closing = analyzer.get_opening_and_closing_odds()
+    metrics = analyzer.calculate_clv_metrics(opening_closing)
+    home = metrics.iloc[0]
+
+    assert home["open_odds_home"] == pytest.approx(2.10)
+    assert home["close_odds_home"] == pytest.approx(1.90)
+    assert home["drift_home"] == pytest.approx(-0.20)
+    assert home["drift_home_pct"] == pytest.approx(-9.52380952)
+    assert home["clv_beat_home_pct"] == pytest.approx(10.52631579)
+    assert home["open_overround_pct"] == pytest.approx(
+        100 / 2.10 + 100 / 3.40 + 100 / 3.40
+    )
+    assert home["overround_change_pct_points"] == pytest.approx(
+        home["current_overround_pct"] - home["open_overround_pct"]
+    )
+
+    steaming = analyzer.detect_steaming_lines(threshold_pct=5.0)
+    assert len(steaming) == 1
+    assert steaming.iloc[0]["steaming_issue"] == "HOME"
+    assert steaming.iloc[0]["steaming_drift_pct"] == pytest.approx(-9.52380952)
+
+
+def test_odds_drift_analyzer_accepts_sqlalchemy_session(drift_database):
+    with drift_database() as session:
+        analyzer = OddsDriftAnalyzer(session)
+        opening_closing = analyzer.get_opening_and_closing_odds(
+            competition="Premier League"
+        )
+
+    assert len(opening_closing) == 1
+    assert opening_closing.iloc[0]["open_odds_home"] == pytest.approx(2.00)
+    assert opening_closing.iloc[0]["close_odds_home"] == pytest.approx(1.98)
+
+
 def test_excel_report_exports_and_formats_market_drift(tmp_path, monkeypatch):
     drift_columns = [
         "Date match",
@@ -159,7 +228,13 @@ def test_excel_report_exports_and_formats_market_drift(tmp_path, monkeypatch):
         ExcelReportGenerator,
         "_load_dataframes",
         staticmethod(
-            lambda: (pd.DataFrame(), pd.DataFrame(), drift_data)
+            lambda: (
+                pd.DataFrame(),
+                pd.DataFrame(),
+                drift_data,
+                pd.DataFrame(),
+                pd.DataFrame(),
+            )
         ),
     )
     output_path = tmp_path / "drift-report.xlsx"

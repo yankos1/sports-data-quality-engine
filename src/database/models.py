@@ -96,7 +96,7 @@ class CleanOdds(Base):
             "fixture_id",
             "bookmaker",
             "captured_at",
-            name="uq_clean_odds_fixture_bookmaker_captured",
+            name="uq_clean_odds_history",
         ),
         CheckConstraint("odds_home > 1", name="ck_clean_odds_home_gt_one"),
         CheckConstraint("odds_draw > 1", name="ck_clean_odds_draw_gt_one"),
@@ -113,7 +113,7 @@ class CleanOdds(Base):
     odds_draw: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
     odds_away: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
     captured_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )
 
     fixture: Mapped[Fixture] = relationship(back_populates="clean_odds")
